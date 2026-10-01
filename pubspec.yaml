@@ -37,6 +37,7 @@ dependencies:
   video_player: ^2.14.0
   permission_handler: ^13.0.2
   flutter_launcher_icons: ^0.14.4
+  wakelock_plus: ^1.8.1
 
 dev_dependencies:
   flutter_test:

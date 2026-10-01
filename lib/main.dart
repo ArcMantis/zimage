@@ -4,15 +4,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:video_player/video_player.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
+
+import 'dart:async';
 
 void main() {
-  // 全屏沉浸模式
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+  WidgetsFlutterBinding.ensureInitialized();
+
   // 锁定竖屏，任何时候不旋转
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
+  // 开启屏幕常亮
+  WakelockPlus.enable();
   runApp(const MyApp());
 }
 
@@ -47,8 +52,10 @@ class ZmediaScreen extends StatefulWidget {
   State<ZmediaScreen> createState() => _ZmediaScreenState();
 }
 
-class _ZmediaScreenState extends State<ZmediaScreen> {
+class _ZmediaScreenState extends State<ZmediaScreen>
+    with WidgetsBindingObserver {
   static const String _mediaDir = '/sdcard/Pictures/WeiXin';
+  Timer? _backgroundTimer;
 
   // 初始页设成一个很大的值，保证往两个方向都能无限滑
   static const int _initialPage = 1000000;
@@ -64,6 +71,7 @@ class _ZmediaScreenState extends State<ZmediaScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this); // 注册生命周期监听
     _init();
   }
 
@@ -131,14 +139,42 @@ class _ZmediaScreenState extends State<ZmediaScreen> {
     } catch (_) {
       return [];
     }
-    result.sort((a, b) => a.file.path.compareTo(b.file.path));
+
+    //按文件名排序
+    //result.sort((a, b) => a.file.path.compareTo(b.file.path));
+
+    // 改为：按文件修改时间倒序，最新的在最前
+    result.sort((a, b) {
+      final ta = a.file.statSync().modified;
+      final tb = b.file.statSync().modified;
+      return tb.compareTo(ta); // 倒序
+    });
     return result;
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // 移除监听
+    _backgroundTimer?.cancel();
     _pageController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.paused) {
+      // 进入后台，启动 1 分钟倒计时
+      _backgroundTimer = Timer(const Duration(minutes: 1), () {
+        // 时间到，终止应用
+        // 这里调用 exit(0) 或 SystemNavigator.pop()
+        SystemNavigator.pop(animated: false);
+      });
+    } else if (state == AppLifecycleState.resumed) {
+      // 回到前台，取消倒计时
+      _backgroundTimer?.cancel();
+      _backgroundTimer = null;
+    }
   }
 
   @override
