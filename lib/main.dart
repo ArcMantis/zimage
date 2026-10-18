@@ -243,9 +243,12 @@ class ImagePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 获取屏幕宽度，避免解压过大的图片
+    final screenWidth = MediaQuery.of(context).size.width.toInt();
     return SizedBox.expand(
       child: Image.file(
         file,
+        cacheWidth: screenWidth * 2,
         fit: BoxFit.contain,
         errorBuilder: (_, _, _) => const Center(
           child: Icon(Icons.broken_image, color: Colors.white24, size: 64),
